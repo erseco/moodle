@@ -425,6 +425,17 @@ final class moodlelib_test extends \advanced_testcase {
      * @covers \core\param
      * @covers \clean_param
      */
+    public function test_clean_param_bool(): void {
+        $this->assertSame(0, clean_param(false, PARAM_BOOL));
+        $this->assertSame(0, clean_param(0, PARAM_BOOL));
+        $this->assertSame(1, clean_param(true, PARAM_BOOL));
+        $this->assertSame(1, clean_param(1, PARAM_BOOL));
+    }
+
+    /**
+     * @covers \core\param
+     * @covers \clean_param
+     */
     public function test_clean_param_sequence(): void {
         $this->assertSame(',9789,42897', clean_param('#()*#,9789\'".,<42897></?$(*DSFMO#$*)(SDJ)($*)', PARAM_SEQUENCE));
         $this->assertSame('', clean_param(null, PARAM_SEQUENCE));
@@ -947,6 +958,12 @@ final class moodlelib_test extends \advanced_testcase {
         validate_param('1e10', PARAM_FLOAT);
         validate_param('.1e+10', PARAM_FLOAT);
         validate_param('1E-1', PARAM_FLOAT);
+
+        // Make sure bools do not cause exceptions.
+        validate_param(false, PARAM_BOOL);
+        validate_param(0, PARAM_BOOL);
+        validate_param(true, PARAM_BOOL);
+        validate_param(1, PARAM_BOOL);
 
         try {
             $param = validate_param('1,2', PARAM_FLOAT);
@@ -5250,6 +5267,7 @@ EOT;
      * @param int|null $enabledashboard Whether the dashboard should be enabled or not.
      * @param int|string|null $userpreference User preference for the home page setting.
      * $param int|null $allowguestmymoodle The $CFG->allowguestmymoodle setting value.
+     * @param int|null $enablemycourses Whether my courses should be enabled or not.
      * @param int|null $enablemyhome Whether the home page should be enabled or not.
      * @covers ::get_home_page
      */
@@ -5260,6 +5278,7 @@ EOT;
         ?int $enabledashboard = null,
         int|string|null $userpreference = null,
         ?int $allowguestmymoodle = null,
+        ?int $enablemycourses = null,
         ?int $enablemyhome = null,
     ): void {
         global $CFG, $USER;
@@ -5281,6 +5300,10 @@ EOT;
         if (isset($allowguestmymoodle)) {
             $CFG->allowguestmymoodle = $allowguestmymoodle;
         }
+        if (!isset($enablemycourses)) {
+            $enablemycourses = 1;
+        }
+        $CFG->enablemycourses = $enablemycourses;
         if (!isset($enablemyhome)) {
             $enablemyhome = 1;
         }
@@ -5424,6 +5447,28 @@ EOT;
                 'userpreference' => HOMEPAGE_SITE,
                 'enablemyhome' => 0,
             ],
+            'Logged user. My courses set as default home page with my courses disabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MY,
+                'defaulthomepage' => HOMEPAGE_MYCOURSES,
+                'enabledashboard' => 1,
+                'enablemycourses' => 0,
+            ],
+            'Logged user. User preference set to my courses with my courses disabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MY,
+                'defaulthomepage' => HOMEPAGE_USER,
+                'enabledashboard' => 1,
+                'userpreference' => HOMEPAGE_MYCOURSES,
+                'enablemycourses' => 0,
+            ],
+            'Logged user. My courses disabled and dashboard disabled, fallback to site' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_SITE,
+                'defaulthomepage' => HOMEPAGE_MYCOURSES,
+                'enabledashboard' => 0,
+                'enablemycourses' => 0,
+            ],
         ];
     }
 
@@ -5437,13 +5482,40 @@ EOT;
 
         $this->resetAfterTest();
 
+        // Dashboard enabled takes priority.
         $CFG->enabledashboard = 1;
+        $CFG->enablemycourses = 1;
+        $CFG->enablemyhome = 1;
         $default = get_default_home_page();
         $this->assertEquals(HOMEPAGE_MY, $default);
 
+        // Dashboard disabled, my courses enabled.
         $CFG->enabledashboard = 0;
+        $CFG->enablemycourses = 1;
+        $CFG->enablemyhome = 1;
         $default = get_default_home_page();
         $this->assertEquals(HOMEPAGE_MYCOURSES, $default);
+
+        // Dashboard and my courses disabled, home enabled.
+        $CFG->enabledashboard = 0;
+        $CFG->enablemycourses = 0;
+        $CFG->enablemyhome = 1;
+        $default = get_default_home_page();
+        $this->assertEquals(HOMEPAGE_SITE, $default);
+
+        // All three disabled, fallback to user preference.
+        $CFG->enabledashboard = 0;
+        $CFG->enablemycourses = 0;
+        $CFG->enablemyhome = 0;
+        $default = get_default_home_page();
+        $this->assertEquals(HOMEPAGE_USER, $default);
+
+        // Dashboard enabled, others disabled.
+        $CFG->enabledashboard = 1;
+        $CFG->enablemycourses = 0;
+        $CFG->enablemyhome = 0;
+        $default = get_default_home_page();
+        $this->assertEquals(HOMEPAGE_MY, $default);
     }
 
     /**
@@ -5909,6 +5981,24 @@ EOT;
             $otherpurpose,
             plugin_supports('mod', $modname, FEATURE_MOD_OTHERPURPOSE),
         );
+    }
+
+    /**
+     * Test MessageID is reset when sending messages in bulk.
+     *
+     * Ensures that each outgoing mail is assigned a unique MessageID.
+     *
+     * @covers ::get_mailer
+     */
+    public function test_message_id_reset_in_smtp_bulk_mode(): void {
+        $this->resetAfterTest();
+        set_config('smtphosts', 'anyhost');
+        set_config('smtpmaxbulk', 5);
+
+        $mailer = get_mailer();
+        $this->assertEmpty($mailer->MessageID);
+        $mailer->MessageID = "this should be reset next";
+        $this->assertEmpty(get_mailer()->MessageID);
     }
 
     /**

@@ -217,6 +217,7 @@ class phpunit_util extends \core\test\testing_util {
         \core_filetypes::reset_caches();
         \core_search\manager::clear_static();
         \core\user::reset_caches();
+        \core\task\manager::reset_state();
         \core\output\icon_system::reset_caches();
         if (class_exists(\core_media_manager::class, false)) {
             \core_media_manager::reset_caches();
@@ -251,26 +252,11 @@ class phpunit_util extends \core\test\testing_util {
         if (class_exists(\core\update\checker::class)) {
             \core\update\checker::reset_caches(true);
         }
-        if (class_exists(\core_course\customfield\course_handler::class)) {
-            \core_course\customfield\course_handler::reset_caches();
+        if (class_exists(\core_customfield\handler::class)) {
+            \core_customfield\handler::reset_caches();
         }
         if (class_exists(\core_reportbuilder\manager::class)) {
             \core_reportbuilder\manager::reset_caches();
-        }
-        if (class_exists(\core_cohort\customfield\cohort_handler::class)) {
-            \core_cohort\customfield\cohort_handler::reset_caches();
-        }
-        if (class_exists(\core_group\customfield\group_handler::class)) {
-            \core_group\customfield\group_handler::reset_caches();
-        }
-        if (class_exists(\core_group\customfield\grouping_handler::class)) {
-            \core_group\customfield\grouping_handler::reset_caches();
-        }
-        if (class_exists(\core_reportbuilder\customfield\report_handler::class)) {
-            \core_reportbuilder\customfield\report_handler::reset_caches();
-        }
-        if (class_exists(\core_customfield\customfield\shared_handler::class)) {
-            \core_customfield\customfield\shared_handler::reset_caches();
         }
 
         // Clear static cache within restore.

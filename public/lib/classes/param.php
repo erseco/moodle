@@ -350,7 +350,7 @@ enum param: string {
      * Accepts lowercase letters, numbers, hyphens, underscores, dots, forward slashes, and a leading @.
      * The path must start with a letter or @. Directory traversal via '..' is rejected by the ESM controller.
      */
-    #[param_clientside_regex('^[@a-z][a-z0-9_.-]*(/[a-z0-9_./-]+)?$')]
+    #[param_clientside_regex('^[@a-zA-Z][a-zA-Z0-9_.-]*(/[a-zA-Z0-9_./-]+)?$')]
     case ESM_PATH = 'esm_path';
 
     /**
@@ -623,6 +623,10 @@ enum param: string {
             if (is_float($param) || is_int($param)) {
                 // These always fit.
             } else if (!is_numeric($param) || !preg_match('/^[\+-]?[0-9]*\.?[0-9]*(e[-+]?[0-9]+)?$/i', (string)$param)) {
+                throw new invalid_parameter_exception($debuginfo);
+            }
+        } else if ($this->canonical() === self::BOOL) {
+            if ($param != $cleaned) {
                 throw new invalid_parameter_exception($debuginfo);
             }
         } else if ((string) $param !== (string) $cleaned) {
