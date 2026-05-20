@@ -873,6 +873,22 @@ function upgrade_plugins_modules($startcallback, $endcallback, $verbose) {
 
         $installedversion = $DB->get_field('config_plugins', 'value', array('name'=>'version', 'plugin'=>$component)); // No caching!
 
+        // Check if the plugin has a lib.php file and check for deprecated plugin supports.
+        $libfile = "{$fullmod}/lib.php";
+        if (file_exists($libfile)) {
+            require_once($libfile);
+            $supportsfunction = "{$mod}_supports";
+            if (function_exists($supportsfunction)) {
+                if ($supportsfunction('groupmembersonly') === true) {
+                    throw new plugin_defective_exception(
+                        $component,
+                        "The FEATURE_GROUPMEMBERSONLY feature has been deprecated and is no longer supported. "
+                        . "It should no longer be declared in the plugin.",
+                    );
+                }
+            }
+        }
+
         if (file_exists($fullmod.'/db/install.php')) {
             if (get_config($module->name, 'installrunning')) {
                 require_once($fullmod.'/db/install.php');
@@ -2524,7 +2540,11 @@ function check_upgrade_key($upgradekeyhash) {
 
                 /** @var core_admin_renderer $output */
                 $output = $PAGE->get_renderer('core', 'admin');
-                echo $output->upgradekey_form_page(new moodle_url('/admin/index.php', array('cache' => 0)));
+
+                echo $output->upgradekey_form_page_with_validation(
+                    new moodle_url('/admin/index.php', ['cache' => 0]),
+                    $upgradekeyhash !== null,
+                );
                 die();
             } else {
                 // This should not happen.
